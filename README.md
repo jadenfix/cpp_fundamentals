@@ -8,6 +8,20 @@ This project implements a high-performance simulation of a financial exchange's 
 
 The simulator processes sequences of buy and sell orders (`LIMIT` and `MARKET`), maintains an accurate order book state reflecting price-time priority, executes trades by matching aggressive orders against resting liquidity, and logs all resulting trade executions.
 
+## Demo
+
+[![Deterministic matching-engine demo](demo/poster.png)](demo/matching-engine.mp4)
+
+![Deterministic matching-engine walkthrough](demo/matching-engine.gif)
+
+This 11-second walkthrough is generated from the actual executable running
+`./build/fundamentals --seed 8257`. It shows FIFO fills, duplicate and
+nonpositive ID rejection, the final book, and quantity reconciliation. The
+input is a deterministic local fixture: it does not connect to an exchange or
+make latency or trading-performance claims. See
+[`demo/actual-output.txt`](demo/actual-output.txt) for the captured stdout and
+[`demo/capture.json`](demo/capture.json) for artifact hashes and evidence.
+
 ## Core Components & Logic
 
 * **Order Representation:** Defines `Order` structs encompassing essential details: ID, Side (Buy/Sell), Type (Limit/Market), Price, Quantity, and Timestamp.
@@ -52,6 +66,16 @@ make
 The simulation prints incoming orders, executions, final bid/ask levels, and the
 trade log. The sample stream is random; the regression tests use fixed orders.
 
+For a reproducible end-to-end run:
+
+```bash
+./build/fundamentals --seed 8257
+```
+
+Seeded mode uses a deterministic fixture, omits wall-clock timestamps from its
+output, and prints a final conservation check. Default invocation remains the
+original random sample mode.
+
 You can also build directly without Make:
 
 ```bash
@@ -63,18 +87,26 @@ c++ -std=c++11 -O2 -Wall -Wextra -Wpedantic fundamentals.cpp -o /tmp/fundamental
 
 ```bash
 make test
+make verify-demo
 make clean test CXXFLAGS='-std=c++11 -O1 -g -Wall -Wextra -Wpedantic -fsanitize=undefined -fno-sanitize-recover=all'
 ```
 
 Tests exercise both sides of the book, price and FIFO priority, partial fills,
 limit residuals, market-order liquidity exhaustion, cancellation, and invalid
-prices. Limit prices must be finite and positive before they can match or rest.
+prices. They also verify that accepted order IDs are positive and unique for the
+engine session and that seeded CLI output is byte-for-byte deterministic. Limit
+prices must be finite and positive before they can match or rest.
 CI builds and tests on Linux and macOS.
+
+To regenerate the media, install Pillow and FFmpeg, then run
+`python3 demo/render_demo.py`. The renderer validates the captured source hash,
+builds the simulator, executes the same seed twice, requires identical output,
+and checks every displayed fact before creating the GIF and MP4.
 
 ### Scope and next steps
 
 This is a single-threaded educational simulator. Prices use floating point,
 order IDs are caller-assigned, cancellation scans the book, and there is no
 persistence, exchange connectivity, or measured latency guarantee. For an
-exchange implementation, integer tick prices, unique-ID validation, indexed
-cancellation, and replayable input would be practical next steps.
+exchange implementation, integer tick prices, indexed cancellation, and a
+durable replay log would be practical next steps.
