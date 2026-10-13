@@ -1,0 +1,35 @@
+{
+  "artifacts": {
+    "demo/actual-output.txt": {
+      "bytes": 2434,
+      "sha256": "a2272adec47034ac3e097b9e0b7153aed61fcbc6e9baacecd62deef424fb4949"
+    },
+    "demo/matching-engine.gif": {
+      "bytes": 263773,
+      "sha256": "3ea85bb7097b6d14263ca74e0f8ee22da456809a72f279fbe826fa5837766016"
+    },
+    "demo/matching-engine.mp4": {
+      "bytes": 157221,
+      "sha256": "e7815b1621aaa6eb828371d90beb8caaa8891ed5e70b9e803c49ebd3a432e278"
+    },
+    "demo/poster.png": {
+      "bytes": 52476,
+      "sha256": "6004945a899ba5d4b56fd1e15aee8577e29a3ac3f2eb9b974d8854d61f2f8002"
+    }
+  },
+  "command": "./build/fundamentals --seed 8257",
+  "duration_seconds": 11,
+  "fixture_scope": "Deterministic local order stream; no exchange, network, or latency measurement.",
+  "required_output": [
+    "Resting:1001 Qty:11 Price:100.00",
+    "Resting:1002 Qty:6 Price:100.00",
+    "Rejected: order ID 2001 has already been accepted in this session.",
+    "Rejected: order ID must be positive.",
+    "Accepted orders: 6 | Rejected orders: 2",
+    "Matched quantity (per side): 24",
+    "Resting quantity: 10",
+    "Conservation: PASS"
+  ],
+  "resolution": "960x540",
+  "seed": 8257
+}

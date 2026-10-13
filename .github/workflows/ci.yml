@@ -12,6 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: make all test
       - run: ./build/fundamentals
+      - run: make verify-demo
 
       - name: Undefined behavior checks
         run: make clean all test CXXFLAGS='-std=c++17 -O1 -g -Wall -Wextra -Wpedantic -fsanitize=undefined -fno-sanitize-recover=all'

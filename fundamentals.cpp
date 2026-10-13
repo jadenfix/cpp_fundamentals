@@ -13,6 +13,8 @@
 #include <cmath>     // For std::round
 #include <stdexcept> // For exceptions
 #include <algorithm> // For std::min
+#include <set>       // For session-unique order IDs
+#include <cstdint>   // For uint32_t demo seeds
 
 // --- Enums for Order Properties ---
 enum class OrderSide { BUY, SELL };
@@ -71,13 +73,15 @@ struct Trade {
                         .count();
     }
 
-     void print() const {
+     void print(bool showTimestamp = true) const {
         std::cout << "TRADE ID:" << tradeId
                   << " Aggressor:" << aggressingOrderId
                   << " Resting:" << restingOrderId
                   << " Qty:" << quantity
-                  << " Price:" << std::fixed << std::setprecision(2) << price
-                  << " Timestamp:" << timestamp; // Removed endl here
+                  << " Price:" << std::fixed << std::setprecision(2) << price;
+        if (showTimestamp) {
+            std::cout << " Timestamp:" << timestamp;
+        }
     }
 };
 long long Trade::nextTradeId = 1;
@@ -147,6 +151,17 @@ public:
 
     bool bidsEmpty() const { return bids.empty(); }
     bool asksEmpty() const { return asks.empty(); }
+
+    long long totalRestingQuantity() const {
+        long long total = 0;
+        for (const auto& level : bids) {
+            for (const auto& order : level.second) total += order.quantity;
+        }
+        for (const auto& level : asks) {
+            for (const auto& order : level.second) total += order.quantity;
+        }
+        return total;
+    }
 
     // Return reference to the list of orders at the best price
     // WARNING: Check !empty() before calling
@@ -218,32 +233,48 @@ class MatchingEngine {
 private:
     OrderBook& book;
     std::vector<Trade>& trades;
+    std::set<long long> acceptedOrderIds;
+    bool deterministicOutput;
 
 public:
-    MatchingEngine(OrderBook& ob, std::vector<Trade>& tradeList)
-        : book(ob), trades(tradeList) {}
+    MatchingEngine(OrderBook& ob, std::vector<Trade>& tradeList, bool deterministic = false)
+        : book(ob), trades(tradeList), deterministicOutput(deterministic) {}
 
-    void processOrder(Order& incomingOrder) {
+    bool processOrder(Order& incomingOrder) {
         std::cout << "Engine Processing: ";
         incomingOrder.print(false);
         std::cout << std::endl;
 
+        if (incomingOrder.orderId <= 0) {
+            std::cout << "  Rejected: order ID must be positive." << std::endl;
+            return false;
+        }
+
+        if (acceptedOrderIds.count(incomingOrder.orderId) != 0) {
+            std::cout << "  Rejected: order ID " << incomingOrder.orderId
+                      << " has already been accepted in this session." << std::endl;
+            return false;
+        }
+
         if (incomingOrder.quantity <= 0) {
             std::cout << "  Ignoring order with zero or negative quantity." << std::endl;
-            return;
+            return false;
         }
 
         if (incomingOrder.type == OrderType::LIMIT &&
             (!std::isfinite(incomingOrder.price) || incomingOrder.price <= 0)) {
             std::cout << "  Ignoring limit order with an invalid price." << std::endl;
-            return;
+            return false;
         }
+
+        acceptedOrderIds.insert(incomingOrder.orderId);
 
         if (incomingOrder.type == OrderType::LIMIT) {
             processLimitOrder(incomingOrder);
         } else { // OrderType::MARKET
             processMarketOrder(incomingOrder);
         }
+        return true;
     }
 
 private:
@@ -295,7 +326,7 @@ private:
                 Trade trade(incomingBuyOrder.orderId, restingSellOrder.orderId, tradePrice, tradeQuantity);
                 trades.push_back(trade);
                 std::cout << "  -> TRADE! ";
-                trade.print(); // Print trade details
+                trade.print(!deterministicOutput); // Print trade details
                 std::cout << std::endl; // Add newline after trade print
                 matched = true;
 
@@ -339,7 +370,7 @@ private:
                 Trade trade(incomingSellOrder.orderId, restingBuyOrder.orderId, tradePrice, tradeQuantity);
                 trades.push_back(trade);
                  std::cout << "  -> TRADE! ";
-                 trade.print(); // Print trade details
+                 trade.print(!deterministicOutput); // Print trade details
                  std::cout << std::endl; // Add newline after trade print
                  matched = true;
 
@@ -389,20 +420,79 @@ std::vector<Order> generateSampleOrders(int numberOfOrders) {
     return orders;
 }
 
-// --- Main Function (remains the same) ---
-int main() {
+std::vector<Order> generateDeterministicDemoOrders(std::uint32_t seed) {
+    std::mt19937 rng(seed);
+    const int firstQuantity = 7 + static_cast<int>(rng() % 5);
+    const int secondQuantity = 5 + static_cast<int>(rng() % 5);
+    const int nextLevelQuantity = 8 + static_cast<int>(rng() % 5);
+    const int residualQuantity = 4 + static_cast<int>(rng() % 4);
+
+    std::vector<Order> orders;
+    orders.emplace_back(1001, OrderSide::SELL, OrderType::LIMIT, 100.00, firstQuantity);
+    orders.emplace_back(1002, OrderSide::SELL, OrderType::LIMIT, 100.00, secondQuantity);
+    orders.emplace_back(1003, OrderSide::SELL, OrderType::LIMIT, 100.50, nextLevelQuantity);
+    orders.emplace_back(2001, OrderSide::BUY, OrderType::MARKET, 0.0,
+                        firstQuantity + secondQuantity + 2);
+    orders.emplace_back(2001, OrderSide::BUY, OrderType::LIMIT, 101.00, 3); // duplicate
+    orders.emplace_back(0, OrderSide::SELL, OrderType::LIMIT, 99.00, 3);    // invalid ID
+    orders.emplace_back(3001, OrderSide::BUY, OrderType::LIMIT, 99.50, residualQuantity);
+    orders.emplace_back(3002, OrderSide::SELL, OrderType::LIMIT, 99.50,
+                        residualQuantity + 2);
+    return orders;
+}
+
+// --- Main Function ---
+int main(int argc, char* argv[]) {
+    bool deterministic = false;
+    std::uint32_t seed = 0;
+    if (argc != 1) {
+        if (argc != 3 || std::string(argv[1]) != "--seed") {
+            std::cerr << "Usage: " << argv[0] << " [--seed <0..4294967295>]\n";
+            return 2;
+        }
+        try {
+            std::size_t parsed = 0;
+            const unsigned long value = std::stoul(argv[2], &parsed, 10);
+            if (parsed != std::string(argv[2]).size() || value > 0xffffffffUL) {
+                throw std::out_of_range("seed");
+            }
+            seed = static_cast<std::uint32_t>(value);
+            deterministic = true;
+        } catch (const std::exception&) {
+            std::cerr << "Invalid seed: expected an integer from 0 to 4294967295.\n";
+            return 2;
+        }
+    }
+
     OrderBook book;
     std::vector<Trade> tradeLog;
-    MatchingEngine engine(book, tradeLog);
+    MatchingEngine engine(book, tradeLog, deterministic);
 
-    std::cout << "--- Generating Sample Orders ---" << std::endl;
-    int numOrdersToGenerate = 25;
-    std::vector<Order> incomingOrders = generateSampleOrders(numOrdersToGenerate);
+    std::vector<Order> incomingOrders;
+    if (deterministic) {
+        std::cout << "--- Deterministic Matching Demo (seed " << seed << ") ---\n";
+        incomingOrders = generateDeterministicDemoOrders(seed);
+    } else {
+        std::cout << "--- Generating Sample Orders ---" << std::endl;
+        incomingOrders = generateSampleOrders(25);
+    }
 
     std::cout << "\n--- Processing Orders with Matching Engine ---" << std::endl;
 
+    long long acceptedQuantity = 0;
+    long long cancelledMarketQuantity = 0;
+    int acceptedOrders = 0;
+    int rejectedOrders = 0;
     for (Order& order : incomingOrders) {
-        engine.processOrder(order);
+        const int submittedQuantity = order.quantity;
+        const bool accepted = engine.processOrder(order);
+        if (accepted) {
+            ++acceptedOrders;
+            acceptedQuantity += submittedQuantity;
+            if (order.type == OrderType::MARKET) cancelledMarketQuantity += order.quantity;
+        } else {
+            ++rejectedOrders;
+        }
         std::cout << "---------------------------------------------" << std::endl;
     }
 
@@ -414,9 +504,24 @@ int main() {
         std::cout << "<No trades executed>" << std::endl;
     } else {
         for (const auto& trade : tradeLog) {
-            trade.print(); // Print trade details
+            trade.print(!deterministic); // Print trade details
             std::cout << std::endl; // Add newline for readability
         }
+    }
+
+    if (deterministic) {
+        long long tradedQuantity = 0;
+        for (const auto& trade : tradeLog) tradedQuantity += trade.quantity;
+        const long long restingQuantity = book.totalRestingQuantity();
+        const long long accountedQuantity = 2 * tradedQuantity + restingQuantity + cancelledMarketQuantity;
+        std::cout << "\n--- Session Reconciliation ---\n"
+                  << "Accepted orders: " << acceptedOrders << " | Rejected orders: " << rejectedOrders << '\n'
+                  << "Accepted quantity: " << acceptedQuantity << '\n'
+                  << "Matched quantity (per side): " << tradedQuantity << '\n'
+                  << "Resting quantity: " << restingQuantity << '\n'
+                  << "Cancelled market remainder: " << cancelledMarketQuantity << '\n'
+                  << "Conservation: " << (acceptedQuantity == accountedQuantity ? "PASS" : "FAIL")
+                  << " (accepted = 2*matched + resting + cancelled)\n";
     }
 
     // Optional: Test the inefficient removeOrder again if needed

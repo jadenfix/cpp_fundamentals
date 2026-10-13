@@ -1,0 +1,61 @@
+--- Deterministic Matching Demo (seed 8257) ---
+
+--- Processing Orders with Matching Engine ---
+Engine Processing: ID:1001 SELL LIM Qty:11/11 Px:100.00
+  Adding remaining Qty 11 of LIMIT order 1001 to book.
+---------------------------------------------
+Engine Processing: ID:1002 SELL LIM Qty:6/6 Px:100.00
+  Adding remaining Qty 6 of LIMIT order 1002 to book.
+---------------------------------------------
+Engine Processing: ID:1003 SELL LIM Qty:10/10 Px:100.50
+  Adding remaining Qty 10 of LIMIT order 1003 to book.
+---------------------------------------------
+Engine Processing: ID:2001 BUY MKT Qty:19/19
+  -> TRADE! TRADE ID:1 Aggressor:2001 Resting:1001 Qty:11 Price:100.00
+  Resting order 1001 filled and removed.
+  -> TRADE! TRADE ID:2 Aggressor:2001 Resting:1002 Qty:6 Price:100.00
+  Resting order 1002 filled and removed.
+  -> TRADE! TRADE ID:3 Aggressor:2001 Resting:1003 Qty:2 Price:100.50
+  Market order 2001 fully filled.
+---------------------------------------------
+Engine Processing: ID:2001 BUY LIM Qty:3/3 Px:101.00
+  Rejected: order ID 2001 has already been accepted in this session.
+---------------------------------------------
+Engine Processing: ID:0 SELL LIM Qty:3/3 Px:99.00
+  Rejected: order ID must be positive.
+---------------------------------------------
+Engine Processing: ID:3001 BUY LIM Qty:5/5 Px:99.50
+  Adding remaining Qty 5 of LIMIT order 3001 to book.
+---------------------------------------------
+Engine Processing: ID:3002 SELL LIM Qty:7/7 Px:99.50
+  -> TRADE! TRADE ID:4 Aggressor:3002 Resting:3001 Qty:5 Price:99.50
+  Resting order 3001 filled and removed.
+  Adding remaining Qty 2 of LIMIT order 3002 to book.
+---------------------------------------------
+
+--- Final Order Book State ---
+
+--- Order Book State ---
+ASKS (Price | Total Qty):
+  100.50 | 8 (1003:8 )
+  99.50 | 2 (3002:2 )
+------------------------
+BIDS (Price | Total Qty):
+  <Empty>
+--- End Order Book ---
+
+--- Trade Log (4 trades) ---
+TRADE ID:1 Aggressor:2001 Resting:1001 Qty:11 Price:100.00
+TRADE ID:2 Aggressor:2001 Resting:1002 Qty:6 Price:100.00
+TRADE ID:3 Aggressor:2001 Resting:1003 Qty:2 Price:100.50
+TRADE ID:4 Aggressor:3002 Resting:3001 Qty:5 Price:99.50
+
+--- Session Reconciliation ---
+Accepted orders: 6 | Rejected orders: 2
+Accepted quantity: 58
+Matched quantity (per side): 24
+Resting quantity: 10
+Cancelled market remainder: 0
+Conservation: PASS (accepted = 2*matched + resting + cancelled)
+
+--- Finished ---
