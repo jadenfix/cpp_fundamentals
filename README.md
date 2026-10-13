@@ -40,15 +40,19 @@ The simulator processes sequences of buy and sell orders (`LIMIT` and `MARKET`),
     * *Linux (Debian/Ubuntu):* `sudo apt update && sudo apt install build-essential`
 * Git.
 
-### Cloning the Repository
+### Run a verified simulation
 
 ```bash
-git clone [https://github.com/jadenfix/cpp_fundamentals.git](https://github.com/jadenfix/cpp_fundamentals.git)
+git clone https://github.com/jadenfix/cpp_fundamentals.git
 cd cpp_fundamentals
-CompilationNavigate to the project directory and compile using the C++11 standard flag:# Recommended for macOS
-clang++ -std=c++11 fundamentals.cpp -o fundamentals
+make test
+make demo
+```
 
-# Alternative using g++
-# g++ -std=c++11 fundamentals.cpp -o fundamentals
-This creates the fundamentals executable.Running the SimulationExecute the compiled program:./fundamentals
-The simulation output will show:Order processing steps by the matching engine.Details of executed trades.The final state of the order book.A summary log of all trades.Potential EnhancementsThis implementation serves as a robust starting point. Future development could include:[ ] Efficient Order Cancellation: Implement O(1) removeOrder using std::unordered_map to track order iterators.[ ] Unit Testing: Develop a test suite (e.g., Google Test) for rigorous validation.[ ] Data Input from File: Load order streams from CSV files for deterministic testing.[ ] Performance Analysis: Profile execution and optimize bottlenecks.[ ] Concurrency: Adapt the engine for safe multi-threaded order ingestion.[ ] Build System: Integrate CMake for cross-platform build management.[ ] Advanced Order Types: Implement Iceberg orders, Fill-or-Kill, etc.[ ] Multi-Instrument Support: Extend the design to manage separate books for multiple assets.
+The regression suite checks FIFO at one price level, partial fills, exhausted
+market orders, cancellation, and rejection of negative and nonfinite limit prices.
+The demo runs the sample order stream and prints trades and final book state.
+
+This is a single-threaded educational exchange simulator. It uses floating-point
+prices and has no persistent order journal, network API, or measured latency claim.
+Unfilled market quantity is reported as cancelled; it never rests in the book.
