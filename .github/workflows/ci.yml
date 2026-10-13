@@ -1,0 +1,11 @@
+name: Matching engine
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: make all test
+      - run: ./build/fundamentals
