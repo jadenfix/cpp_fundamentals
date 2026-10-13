@@ -29,7 +29,7 @@ The simulator processes sequences of buy and sell orders (`LIMIT` and `MARKET`),
 * **Language:** C++ (utilizing C++11 features like `enum class`, `auto`, range-based `for`, `chrono`).
 * **Compiler:** Tested with `clang++` (macOS) and compatible with `g++`. Requires C++11 standard support.
 * **Standard Library:** Leverages STL containers (`map`, `list`, `vector`) and algorithms (`min`).
-* **Build:** Currently built via direct command-line compilation. CMake integration is a potential enhancement.
+* **Build:** Dependency-free Make targets for the simulator and regression suite.
 
 ## Getting Started
 
@@ -40,15 +40,41 @@ The simulator processes sequences of buy and sell orders (`LIMIT` and `MARKET`),
     * *Linux (Debian/Ubuntu):* `sudo apt update && sudo apt install build-essential`
 * Git.
 
-### Cloning the Repository
+### Build and run
 
 ```bash
-git clone [https://github.com/jadenfix/cpp_fundamentals.git](https://github.com/jadenfix/cpp_fundamentals.git)
+git clone https://github.com/jadenfix/cpp_fundamentals.git
 cd cpp_fundamentals
-CompilationNavigate to the project directory and compile using the C++11 standard flag:# Recommended for macOS
-clang++ -std=c++11 fundamentals.cpp -o fundamentals
+make
+./build/fundamentals
+```
 
-# Alternative using g++
-# g++ -std=c++11 fundamentals.cpp -o fundamentals
-This creates the fundamentals executable.Running the SimulationExecute the compiled program:./fundamentals
-The simulation output will show:Order processing steps by the matching engine.Details of executed trades.The final state of the order book.A summary log of all trades.Potential EnhancementsThis implementation serves as a robust starting point. Future development could include:[ ] Efficient Order Cancellation: Implement O(1) removeOrder using std::unordered_map to track order iterators.[ ] Unit Testing: Develop a test suite (e.g., Google Test) for rigorous validation.[ ] Data Input from File: Load order streams from CSV files for deterministic testing.[ ] Performance Analysis: Profile execution and optimize bottlenecks.[ ] Concurrency: Adapt the engine for safe multi-threaded order ingestion.[ ] Build System: Integrate CMake for cross-platform build management.[ ] Advanced Order Types: Implement Iceberg orders, Fill-or-Kill, etc.[ ] Multi-Instrument Support: Extend the design to manage separate books for multiple assets.
+The simulation prints incoming orders, executions, final bid/ask levels, and the
+trade log. The sample stream is random; the regression tests use fixed orders.
+
+You can also build directly without Make:
+
+```bash
+c++ -std=c++11 -O2 -Wall -Wextra -Wpedantic fundamentals.cpp -o /tmp/fundamentals
+/tmp/fundamentals
+```
+
+### Validate the matching engine
+
+```bash
+make test
+make clean test CXXFLAGS='-std=c++11 -O1 -g -Wall -Wextra -Wpedantic -fsanitize=undefined -fno-sanitize-recover=all'
+```
+
+Tests exercise both sides of the book, price and FIFO priority, partial fills,
+limit residuals, market-order liquidity exhaustion, cancellation, and invalid
+prices. Limit prices must be finite and positive before they can match or rest.
+CI builds and tests on Linux and macOS.
+
+### Scope and next steps
+
+This is a single-threaded educational simulator. Prices use floating point,
+order IDs are caller-assigned, cancellation scans the book, and there is no
+persistence, exchange connectivity, or measured latency guarantee. For an
+exchange implementation, integer tick prices, unique-ID validation, indexed
+cancellation, and replayable input would be practical next steps.

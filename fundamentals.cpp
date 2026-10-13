@@ -37,7 +37,7 @@ struct Order {
                         std::chrono::system_clock::now().time_since_epoch())
                         .count();
     }
-    Order() : orderId(0), side(OrderSide::BUY), type(OrderType::LIMIT), price(0.0), quantity(0), initialQuantity(0), timestamp(0) {}
+    Order() : orderId(0), side(OrderSide::BUY), type(OrderType::LIMIT), price(0.0), quantity(0), timestamp(0), initialQuantity(0) {}
 
     void print(bool showTimestamp = true) const {
         std::cout << "ID:" << orderId
@@ -99,7 +99,7 @@ private:
 
 public:
     void addOrder(const Order& order) {
-        if (order.type != OrderType::LIMIT || order.quantity <= 0 || order.price <= 0) {
+        if (order.type != OrderType::LIMIT || order.quantity <= 0 || !std::isfinite(order.price) || order.price <= 0) {
             return; // Ignore invalid/market orders for direct book addition
         }
         if (order.side == OrderSide::BUY) {
@@ -233,6 +233,12 @@ public:
             return;
         }
 
+        if (incomingOrder.type == OrderType::LIMIT &&
+            (!std::isfinite(incomingOrder.price) || incomingOrder.price <= 0)) {
+            std::cout << "  Ignoring limit order with an invalid price." << std::endl;
+            return;
+        }
+
         if (incomingOrder.type == OrderType::LIMIT) {
             processLimitOrder(incomingOrder);
         } else { // OrderType::MARKET
@@ -242,11 +248,10 @@ public:
 
 private:
     void processLimitOrder(Order& incomingOrder) {
-        bool matched = false;
         if (incomingOrder.side == OrderSide::BUY) {
-            matched = matchBuyOrder(incomingOrder);
+            matchBuyOrder(incomingOrder);
         } else {
-            matched = matchSellOrder(incomingOrder);
+            matchSellOrder(incomingOrder);
         }
 
         if (incomingOrder.quantity > 0) {
@@ -258,11 +263,10 @@ private:
     }
 
     void processMarketOrder(Order& incomingOrder) {
-        bool matched = false;
         if (incomingOrder.side == OrderSide::BUY) {
-            matched = matchBuyOrder(incomingOrder);
+            matchBuyOrder(incomingOrder);
         } else {
-            matched = matchSellOrder(incomingOrder);
+            matchSellOrder(incomingOrder);
         }
 
         if (incomingOrder.quantity > 0) {

@@ -1,0 +1,17 @@
+name: Matching engine
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  build-and-test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: make all test
+      - run: ./build/fundamentals
+
+      - name: Undefined behavior checks
+        run: make clean all test CXXFLAGS='-std=c++17 -O1 -g -Wall -Wextra -Wpedantic -fsanitize=undefined -fno-sanitize-recover=all'
