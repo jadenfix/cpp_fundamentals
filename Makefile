@@ -11,7 +11,10 @@ build/matching_test: tests/matching_test.cpp fundamentals.cpp | build
 	$(CXX) $(CXXFLAGS) tests/matching_test.cpp -o $@
 demo: build/fundamentals
 	./build/fundamentals
-test: build/matching_test
+build/e2e_matching_test: tests/e2e_matching_test.cpp fundamentals.cpp | build
+	$(CXX) $(CXXFLAGS) $< -o $@
+test: build/matching_test build/e2e_matching_test
 	./build/matching_test
+	./build/e2e_matching_test
 clean:
 	rm -rf build
